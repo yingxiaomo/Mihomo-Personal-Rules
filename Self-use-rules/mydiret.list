@@ -7,8 +7,9 @@ DOMAIN-KEYWORD,epic
 DOMAIN-KEYWORD,flyme
 DOMAIN-KEYWORD,nmliao
 DOMAIN-KEYWORD,outlook
+DOMAIN-KEYWORD,mmoyo
 
-# API
+
 DOMAIN,api.ipify.org
 DOMAIN-SUFFIX,amap.com
 DOMAIN-SUFFIX,qweatherapi.com
