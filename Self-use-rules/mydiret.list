@@ -7,7 +7,7 @@ DOMAIN-KEYWORD,epic
 DOMAIN-KEYWORD,flyme
 DOMAIN-KEYWORD,nmliao
 DOMAIN-KEYWORD,outlook
-DOMAIN-KEYWORD,mmoyo
+
 
 
 DOMAIN,api.ipify.org
@@ -25,6 +25,10 @@ DOMAIN-SUFFIX,170011.xyz
 DOMAIN-SUFFIX,396638.xyz
 DOMAIN-SUFFIX,ovoxo.cc
 DOMAIN-SUFFIX,xiaomo.eu
+DOMAIN-SUFFIX,vercel.app
+
+
+
 
 # 乱七八糟
 DOMAIN-SUFFIX,ghcr.io
