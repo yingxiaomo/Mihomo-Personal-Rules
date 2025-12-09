@@ -138,8 +138,7 @@ dns:
 
 # 节点选择锚点
 all: &all {  type: select, proxies: [ 新加坡智能, 香港智能, 日本智能, 美国智能, 其他智能, 自建智能, 新加坡手动, 香港手动, 日本手动, 美国手动, 其他手动, 自建手动, 全部手动, 直连 ] } 
-Emby: &Emby {  type: select, proxies: [ Emby智能, Emby手动 ] } 
-Bybit: &Bybit {  type: select, proxies: [ Bybit服务 ] } 
+
 
 # 节点筛选锚点
 SG: &SG { filter: "(?i)新加坡|坡|狮城|SG|Singapore" } 
@@ -147,8 +146,6 @@ HK: &HK { filter: "(?i)港|hk|hongkong|hong kong" }
 US: &US { filter: "(?i)(us|united states|美国|美区)" }
 JP: &JP { filter: "(?i)日本|jp|japan" } 
 ZJ: &ZJ { filter: "(?i)(自建|workers)(?!.*移动)" } 
-E: &E { filter: "(?i)(香港|港|hk|新加坡|sg|坡|狮城|美|us|united states)" }
-B: &B { filter: "^((?!US|美国|自建|直连|流量|到期|重置|HK|香港|SG|新加坡|CA|加拿大|FR|法国|UK|英国|KR|朝鲜|CU|古巴|IR|伊朗|UZ|乌兹别克|SU|苏丹|SY|叙利亚|UA|俄罗斯控制乌克兰|Се|塞瓦斯托波尔).)*$" } 
 Other: &Other { filter: "(?i)^(?!.*(?:🇭🇰|🇯🇵|🇺🇸|🇸🇬|🇨🇳|港|hk|hongkong|台|tw|taiwan|日|直连|jp|japan|新|sg|singapore|美|us|unitedstates)).*" } 
 
 # 节点分组锚点
@@ -169,8 +166,6 @@ CH: &CH { type: load-balance, strategy: consistent-hashing, include-all: true, <
 
 proxy-groups:
   - { name: 漏网之鱼, <<: *all, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/match.png" }
-  - { name: 自用代理, <<: *all, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/my.png" } 
-  - { name: Emby, <<: *Emby, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Emby.png" }  
   - { name: 游戏平台, <<: *all, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Steam.png" } 
   - { name: GitHub, <<: *all, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/GitHub.png" } 
   - { name: 电报消息, <<: *all, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Telegram.png" } 
@@ -203,20 +198,14 @@ proxy-groups:
   - { name: 香港手动, <<: *Select, <<: *HK, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Hong_Kong.png" }
   - { name: 日本手动, <<: *Select, <<: *JP, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Japan.png" }
   - { name: 美国手动, <<: *Select, <<: *US, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/United_States.png" } 
-  - { name: Emby手动, <<: *Select, <<: *E, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Emby.png"}
   - { name: 其他手动, <<: *Select, <<: *Other, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Puzzle.png"} 
   - { name: 自建手动, <<: *Select, <<: *ZJ, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Daily.png"} 
-
-# 💰 Bybit
-  - { name: Bybit服务, <<: *Select, <<: *B, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Bitcoin.png"} 
-
 
 # 故障转移
 #  - { name: 新加坡故转, <<: *Fallback, proxies: [ 新加坡智能, 新加坡自动, 新加坡手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Singapore.png"} 
 #  - { name: 香港故转, <<: *Fallback, proxies:  [ 香港智能, 香港自动, 香港手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Hong_Kong.png"}  
 #  - { name: 日本故转, <<: *Fallback, proxies: [ 日本智能, 日本自动, 日本手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Japan.png"}
 #  - { name: 美国故转, <<: *Fallback, proxies: [ 美国智能, 美国自动, 美国手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/United_States.png"}
-#  - { name: Emby故转, <<: *Fallback, proxies: [ Emby智能, Emby自动, Emby手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Emby.png"}      
 #  - { name: 其他故转, <<: *Fallback, proxies: [ 其他智能, 其他自动, 其他手动 ], icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Puzzle.png"}
 
 # 自动选择
@@ -224,7 +213,6 @@ proxy-groups:
 #  - { name: 香港自动, <<: *Url-Test, <<: *HK, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Hong_Kong.png"}
 #  - { name: 日本自动, <<: *Url-Test, <<: *JP, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Japan.png"}
 #  - { name: 美国自动, <<: *Url-Test, <<: *US, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/United_States.png"} 
-#  - { name: Emby自动, <<: *Url-Test, <<: *E, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Emby.png"}
 #  - { name: 其他自动, <<: *Url-Test, <<: *Other, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Puzzle.png"} 
 #  - { name: 自建自动, <<: *Url-Test, <<: *ZJ, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Daily.png"}
 
@@ -239,7 +227,6 @@ proxy-groups:
   - { name: 香港智能, <<: *Smart, <<: *Check, <<: *HK, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Hong_Kong.png"}
   - { name: 日本智能, <<: *Smart, <<: *Check, <<: *JP, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Japan.png"}
   - { name: 美国智能, <<: *Smart, <<: *Check, <<: *US, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/United_States.png"} 
-  - { name: Emby智能, <<: *Smart, <<: *Check, <<: *E, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Emby.png"}
   - { name: 其他智能, <<: *Smart, <<: *Check, <<: *Other, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Puzzle.png"} 
   - { name: 自建智能, <<: *Smart, <<: *Check, <<: *ZJ, icon: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/icons/Daily.png" }
 
@@ -248,13 +235,12 @@ proxy-groups:
 # 规则匹配
 rules:
   - RULE-SET,私有域名 , 直连
-  - RULE-SET,GTA, 直连
   - RULE-SET,直连软件, 直连
   - RULE-SET,网络测试, 网络测试
   - RULE-SET,游戏下载, 直连
   - RULE-SET,游戏平台, 游戏平台
   - RULE-SET,BT下载, 直连
-  - RULE-SET,谷歌FCM, 直连
+  - RULE-SET,谷歌FCM, 新加坡智能
   - RULE-SET,谷歌cn, 直连
   - RULE-SET,微软云盘, 微软云盘
   - RULE-SET,微软服务, 微软服务
@@ -292,7 +278,6 @@ rule-anchor:
   class: &class {type: http, interval: 86400, behavior: classical, format: text}
 rule-providers: 
   fakeip过滤: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/fakeip-filter.mrs"}  
-  GTA: { <<: *class, url: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/Self-use-rules/gta.list"} 
   游戏下载: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/games-cn.mrs"} 
   游戏平台: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/games.mrs"} 
   私有域名: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/private.mrs"} 
