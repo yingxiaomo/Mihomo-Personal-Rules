@@ -35,7 +35,8 @@ DOMAIN-SUFFIX,docker.io
 DOMAIN-SUFFIX,zeabur.com
 DOMAIN-SUFFIX,bujidao.org
 
-
+# R星
+DOMAIN-KEYWORD,rockstargames
 
 DOMAIN-SUFFIX,ghfast.top
 DOMAIN-SUFFIX,humblebundle.com
