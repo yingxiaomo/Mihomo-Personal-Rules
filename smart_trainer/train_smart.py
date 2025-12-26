@@ -1,12 +1,12 @@
 
 """
-train_smart.py: LightGBM Model Trainer for Mihomo Smart Node Selection (Final Fix)
+train_smart.py: LightGBM Model Trainer for Mihomo Smart Node Selection (Final Fix v2)
 
-主要修复：
-1. 自动识别数据量，如果真实测速数据不足，自动回退到模拟官方权重，防止模型崩溃。
-2. 移除重复的 Log1p 变换，防止数值被过度压缩。
-3. 补全 RobustScaler 参数保存，防止路由器读取模型出错。
-4. 增强数据清洗逻辑，只针对数值列处理。
+修复记录：
+1. [Critical] 修复参数名不匹配问题：同时支持 --output 和 --output-file，解决 CI 报错。
+2. 自动识别数据量：如果真实测速数据不足，自动回退到模拟官方权重。
+3. 移除重复 Log1p：防止数据被双重压缩。
+4. 补全 RobustScaler 保存逻辑。
 """
 
 import argparse
@@ -16,7 +16,6 @@ import re
 import sys
 import glob
 import time
-import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
@@ -67,7 +66,7 @@ CONTINUOUS_FEATURES = [
 ]
 
 
-COUNT_FEATURES = ['success', 'failure']
+COUNT_FEATURES = ['success', 'failure'] 
 
 
 LGBM_PARAMS = {
@@ -153,6 +152,12 @@ def get_fallback_features() -> dict:
 def load_data(data_dir: Path, days: int = 15) -> pd.DataFrame:
     """加载最近 N 天的 CSV 数据"""
     logging.info(f"Loading data from the last {days} days from '{data_dir}'...")
+    
+
+    if not data_dir.exists():
+        logging.error(f"Data directory not found: {data_dir}")
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
+
     all_files = glob.glob(str(data_dir / "*.csv"))
     
     cutoff_time = time.time() - (days * 86400)
@@ -196,7 +201,6 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     logging.info("Starting data preprocessing...")
 
 
-
     TARGET_MAIN = 'maxdownloadrate_kb'
     
 
@@ -214,15 +218,12 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     original_rows = len(df)
     
 
-
     high_quality_df = df[df[TARGET_MAIN] > 0.1].copy()
     
     use_weight_as_fallback = False
     
 
-
     if len(high_quality_df) > 100:
-
         df = high_quality_df
         logging.info(f"📊 Data Cleaning: {original_rows} -> {len(df)} (Kept rows with real traffic data)")
         y = df[TARGET_MAIN]
@@ -235,17 +236,13 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
             y = df['weight']
             use_weight_as_fallback = True
         else:
-
             y = df[TARGET_MAIN]
 
 
     logging.info("Performing feature engineering...")
-
     if 'latency' in df.columns:
         df['latency_stability'] = df['latency'] / (df['latency'] + 1e-6)
     
-
-
 
     mask_features = BIASED_FEATURES + COMPLEX_FEATURES
     logging.info(f"Masking biased/complex features: {len(mask_features)} items")
@@ -255,7 +252,6 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
 
 
     ordered_features = [feature_order[i] for i in sorted(feature_order.keys())]
-
     valid_cols = [col for col in ordered_features if col in df.columns]
     X = df[valid_cols]
     
@@ -288,10 +284,8 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
 
     logging.info("Calculating sample weights...")
     if '__file_age_days' in df.columns:
-
         base_weight = 1.0 / (1.0 + 0.1 * df['__file_age_days'])
         
-
         if not use_weight_as_fallback:
             speed_bonus = np.log1p(df[TARGET_MAIN]) * 0.05
             df['sample_weight'] = base_weight + speed_bonus
@@ -308,12 +302,10 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
 def save_model_and_params(model, scalers, feature_order, output_path: Path):
     """
     保存模型并将归一化参数以 INI 格式追加到文件末尾。
-    这是路由器能正确运行模型的关键！
     """
     logging.info(f"Saving model to '{output_path}'...")
     joblib.dump(model, output_path)
     
-
     feature_name_to_idx = {v: k for k, v in feature_order.items()}
 
     ini_string = "\n\n[transforms]\n"
@@ -333,7 +325,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
                 valid_indices.append(i)
         
         if feature_indices:
-
             means = scaler_std.mean_[valid_indices]
             scales = scaler_std.scale_[valid_indices]
             
@@ -358,7 +349,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             centers = scaler_rob.center_[valid_indices]
             scales = scaler_rob.scale_[valid_indices]
             
-
             definitions_string += "\nrobust_type=RobustScaler\n"
             definitions_string += "robust_features=" + ",".join(feature_indices) + "\n"
             definitions_string += "robust_center=" + ",".join(f"{x:.6f}" for x in centers) + "\n"
@@ -370,7 +360,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
 
     final_config = ini_string + order_string + definitions_string + "transform=true\n[/transforms]"
 
-
     with open(output_path, "ab") as f:
         f.write(final_config.encode('utf-8'))
     
@@ -378,17 +367,26 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Train LightGBM model for Mihomo.")
+    
+
     parser.add_argument("--data_dir", type=Path, default=DEFAULT_DATA_DIR, help="Directory containing CSV data files.")
-    parser.add_argument("--output", type=Path, default=DEFAULT_MODEL_PATH, help="Path to save the trained model.")
+    parser.add_argument("--output", "--output-file", dest="output", type=Path, default=DEFAULT_MODEL_PATH, help="Path to save the trained model.")
+    
+
+
+    
     args = parser.parse_args()
 
 
-    go_content = fetch_go_source()
-    feature_order = parse_feature_order(go_content)
+    try:
+        go_content = fetch_go_source()
+        feature_order = parse_feature_order(go_content)
+    except Exception as e:
+        logging.error(f"Failed to sync Go source: {e}")
+        sys.exit(1)
 
 
     try:
-
         df = load_data(args.data_dir, days=15)
     except Exception as e:
         logging.error(f"Failed to load data: {e}")
@@ -406,7 +404,6 @@ def main():
     X_train, X_val, y_train, y_val, w_train, w_val = train_test_split(
         X, y, weights, test_size=0.2, random_state=42
     )
-
 
     logging.info("Starting LightGBM training...")
     model = lgb.LGBMRegressor(**LGBM_PARAMS)
