@@ -160,22 +160,6 @@ def load_data(data_dir: Path, time_window_days: int = 15) -> pd.DataFrame:
             try:
                 df = pd.read_csv(f, encoding=encoding)
                 df['file_age_days'] = (datetime.datetime.now() - datetime.datetime.fromtimestamp(f.stat().st_mtime)).days
-                initial_len = len(df)
-                
-                TARGET_MAIN = 'download_mbps'
-                if TARGET_MAIN not in df.columns:
-                    TARGET_MAIN = 'maxdownloadrate_kb'
-                
-                if TARGET_MAIN in df.columns:
-                    df[TARGET_MAIN] = pd.to_numeric(df[TARGET_MAIN], errors='coerce')
-                    df.dropna(subset=[TARGET_MAIN], inplace=True)
-                    final_len = len(df)
-                    filtered = initial_len - final_len
-                    logging.info(f"文件处理完成: {initial_len} -> {final_len} 条记录 (过滤 {filtered} 条)")
-                else:
-                    logging.warning(f"文件 {f.name} 缺少目标列，跳过")
-                    df = pd.DataFrame()
-
                 if not df.empty:
                     df_list.append(df)
                 break
@@ -183,62 +167,43 @@ def load_data(data_dir: Path, time_window_days: int = 15) -> pd.DataFrame:
                 continue
         else:
             logging.warning(f"无法解码或解析文件: {f.name}")
-    
     if not df_list:
         logging.error("未能加载任何有效数据")
         return pd.DataFrame()
-    
     combined_df = pd.concat(df_list, ignore_index=True)
-    logging.info(f"\n数据合并完成，总记录数: {len(combined_df)}")
     return combined_df
 
 def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
-    logging.info("\n[步骤3] 特征提取")
+    logging.info("\n[步骤3] 特征提取与废数据过滤")
     logging.info("开始构建特征矩阵和目标变量...")
-    
     df['latency_stability'] = df['latency_avg'] / (df['latency_min'] + 1e-6)
     df['connection_efficiency'] = df['success_rate'] / (df['connect_time'] + 1e-6)
-    
     TARGET_MAIN = 'download_mbps'
     if TARGET_MAIN not in df.columns:
         TARGET_MAIN = 'maxdownloadrate_kb'
-    
     initial_rows = len(df)
     df[TARGET_MAIN] = pd.to_numeric(df[TARGET_MAIN], errors='coerce')
-    df.dropna(subset=[TARGET_MAIN], inplace=True)
-    
-    y = df[TARGET_MAIN]
-    if not np.isfinite(y).all():
-        logging.warning("目标变量仍包含非有限值(Inf)，正在过滤...")
-        valid_indices = np.isfinite(y)
-        df = df[valid_indices]
-        y = y[valid_indices]
-    
+    df = df[df[TARGET_MAIN] > 0]
+    df = df[np.isfinite(df[TARGET_MAIN])]
     final_rows = len(df)
-    logging.info(f"目标值清洗完成，共过滤 {initial_rows - final_rows} 条无效数据")
-
+    logging.info(f"已过滤 {initial_rows - final_rows} 条废数据 (NaN或0速度). 剩余有效记录数: {final_rows}")
     if df.empty:
         raise ValueError("数据清洗后为空，无法继续训练")
-
+    y = df[TARGET_MAIN]
     logging.info(f"屏蔽偏见特征: {BIASED_FEATURES}")
     for col in BIASED_FEATURES:
         if col in df.columns:
             df[col] = 0.0
-            
     ordered_features = [feature_order[i] for i in sorted(feature_order.keys())]
     X = df[[col for col in ordered_features if col in df.columns]]
     X = X.select_dtypes(include=np.number)
-    
     X = X.fillna(0)
     X.replace([np.inf, -np.inf], 0, inplace=True)
-
     logging.info(f"应用 Log1p 变换: {LOG1P_FEATURES}")
     for col in LOG1P_FEATURES:
         if col in X.columns:
             X[col] = np.log1p(X[col].clip(lower=0))
-    
     logging.info(f"特征提取完成 - 特征矩阵形状: {X.shape}, 目标变量形状: {y.shape}")
-
     logging.info("\n[步骤4] 特征标准化")
     scalers = {}
     if CONTINUOUS_FEATURES:
@@ -248,7 +213,6 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
         scalers['standard'] = scaler_std
         scalers['std_features'] = continuous_present
         logging.info(f"StandardScaler 处理完成，影响特征数: {len(continuous_present)}")
-        
     if COUNT_FEATURES:
         count_present = [c for c in COUNT_FEATURES if c in X.columns]
         scaler_robust = RobustScaler()
@@ -256,24 +220,19 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
         scalers['robust'] = scaler_robust
         scalers['robust_features'] = count_present
         logging.info(f"RobustScaler 处理完成，影响特征数: {len(count_present)}")
-
     df['sample_weight'] = 1 / (1 + 0.1 * df['file_age_days'])
     sample_weights = df['sample_weight']
-    
     return X, y, sample_weights, scalers
 
 def save_model_and_params(model, scalers, feature_order, output_path: Path):
     logging.info("\n[步骤7] 模型保存")
     logging.info(f"开始保存模型至: {output_path}")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
     joblib.dump(model, output_path)
-    
     feature_name_to_idx = {v: k for k, v in feature_order.items()}
     ini_string = "\n\n[transforms]\n"
     definitions_string = "\n[definitions]\n"
     order_string = "\n[order]\n"
-    
     scaler_std = scalers.get('standard')
     std_feature_names = scalers.get('std_features', [])
     if scaler_std and std_feature_names:
@@ -283,7 +242,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             if name in feature_name_to_idx:
                 feature_indices.append(str(feature_name_to_idx[name]))
                 valid_indices.append(i)
-        
         if feature_indices:
             means = scaler_std.mean_[valid_indices]
             scales = scaler_std.scale_[valid_indices]
@@ -291,7 +249,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             definitions_string += "std_features=" + ",".join(feature_indices) + "\n"
             definitions_string += "std_mean=" + ",".join(f"{x:.6f}" for x in means) + "\n"
             definitions_string += "std_scale=" + ",".join(f"{x:.6f}" for x in scales) + "\n"
-            
     scaler_robust = scalers.get('robust')
     robust_feature_names = scalers.get('robust_features', [])
     if scaler_robust and robust_feature_names:
@@ -301,7 +258,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             if name in feature_name_to_idx:
                 feature_indices.append(str(feature_name_to_idx[name]))
                 valid_indices.append(i)
-        
         if feature_indices:
             centers = scaler_robust.center_[valid_indices]
             scales = scaler_robust.scale_[valid_indices]
@@ -309,14 +265,11 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             definitions_string += "robust_features=" + ",".join(feature_indices) + "\n"
             definitions_string += "robust_center=" + ",".join(f"{x:.6f}" for x in centers) + "\n"
             definitions_string += "robust_scale=" + ",".join(f"{x:.6f}" for x in scales) + "\n"
-            
     for i in sorted(feature_order.keys()):
         order_string += f"{i} = {feature_order[i]}\n"
-        
     final_config = ini_string + order_string + definitions_string + "transform=true\n[/transforms]"
     with open(output_path, "ab") as f:
         f.write(final_config.encode('utf-8'))
-        
     logging.info("模型保存成功，可以直接部署")
     logging.info("============================================================")
     logging.info("模型训练流程完成")
@@ -325,15 +278,6 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
 
 def evaluate_model(model, X_val: pd.DataFrame, y_val: pd.Series) -> tuple:
     predictions = model.predict(X_val)
-    
-    if np.isnan(predictions).any():
-        logging.warning(f"预测结果中包含 {np.isnan(predictions).sum()} 个 NaN 值，已自动替换为 0")
-        predictions = np.nan_to_num(predictions, nan=0.0)
-    
-    if np.isnan(y_val).any():
-        logging.error("验证集目标变量 y_val 中包含 NaN 值！这不应该发生。")
-        y_val = y_val.fillna(0)
-
     mae = mean_absolute_error(y_val, predictions)
     r2 = r2_score(y_val, predictions)
     return mae, r2
@@ -343,25 +287,20 @@ def main():
     print("Mihomo 智能权重模型训练")
     print("============================================================")
     print("")
-    
     parser = argparse.ArgumentParser(description="Mihomo Smart Node Trainer")
     parser.add_argument("--data-dir", type=Path, default=Path("./data"), help="Directory for training data.")
     parser.add_argument("--output-file", type=Path, default=Path("./Model.bin"), help="Path to save the model.")
     parser.add_argument("--days", type=int, default=15, help="Number of recent days of data to use.")
     parser.add_argument("--champion-model-path", type=Path, default=None, help="Path to the champion model for comparison.")
     args = parser.parse_args()
-    
     go_source = fetch_go_source()
     feature_order = parse_feature_order(go_source)
-    
     fetched_data_dir = fetch_training_data(args.data_dir)
     df = load_data(fetched_data_dir, args.days)
     if df.empty:
         logging.error("没有数据加载，程序退出")
         sys.exit(1)
-        
     X, y, sample_weights, scalers = preprocess_data(df, feature_order)
-    
     logging.info("\n[步骤5] 训练测试集划分")
     X_train, X_val, y_train, y_val, weights_train, _ = train_test_split(
         X, y, sample_weights, test_size=0.2, random_state=42
@@ -370,7 +309,6 @@ def main():
         X_train, y_train, weights_train, test_size=0.2, random_state=42
     )
     logging.info(f"数据划分完成 - 训练集: {X_train.shape}, 测试集: {X_test.shape}")
-    
     logging.info("\n[步骤6] 模型训练")
     logging.info("开始 LightGBM 模型训练...")
     challenger_model = lgb.LGBMRegressor(
@@ -388,10 +326,8 @@ def main():
         callbacks=[lgb.early_stopping(100, verbose=True)]
     )
     logging.info("模型训练完成")
-    
     challenger_mae, challenger_r2 = evaluate_model(challenger_model, X_val, y_val)
     logging.info(f"训练集R²得分: {challenger_r2:.4f} (MAE: {challenger_mae:.4f})")
-    
     new_model_is_champion = True
     if args.champion_model_path and args.champion_model_path.exists():
         logging.info(f"正在加载冠军模型进行对比: {args.champion_model_path}")
@@ -399,7 +335,6 @@ def main():
             champion_model = joblib.load(args.champion_model_path)
             champion_mae, champion_r2 = evaluate_model(champion_model, X_val, y_val)
             logging.info(f"冠军模型 R²: {champion_r2:.4f} (MAE: {champion_mae:.4f})")
-            
             if challenger_mae >= champion_mae:
                 new_model_is_champion = False
                 logging.info("新模型表现未超过旧模型，保留旧模型")
@@ -409,10 +344,8 @@ def main():
             logging.warning(f"无法加载或评估冠军模型: {e}，将直接使用新模型")
     else:
         logging.info("未找到旧模型，新模型将直接上位")
-        
     print(f"::set-output name=new_model_is_champion::{str(new_model_is_champion).lower()}")
     if new_model_is_champion:
         save_model_and_params(challenger_model, scalers, feature_order, args.output_file)
-
 if __name__ == "__main__":
     main()
