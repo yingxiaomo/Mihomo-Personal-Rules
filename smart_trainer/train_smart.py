@@ -178,9 +178,25 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     logging.info("开始构建特征矩阵和目标变量...")
     df['latency_stability'] = df['latency_avg'] / (df['latency_min'] + 1e-6)
     df['connection_efficiency'] = df['success_rate'] / (df['connect_time'] + 1e-6)
-    TARGET_MAIN = 'download_mbps'
-    if TARGET_MAIN not in df.columns:
-        TARGET_MAIN = 'maxdownloadrate_kb'
+    
+    candidates = ['download_mbps', 'maxdownloadrate_kb']
+    TARGET_MAIN = None
+    
+    for cand in candidates:
+        if cand in df.columns:
+            temp_target = pd.to_numeric(df[cand], errors='coerce')
+            valid_count = (temp_target > 0).sum()
+            logging.info(f"候选目标 '{cand}' 有效(>0) 数据量: {valid_count}")
+            if valid_count > 100:
+                TARGET_MAIN = cand
+                break
+    
+    if not TARGET_MAIN:
+        logging.error("所有候选目标列的有效数据量均不足 (download_mbps, maxdownloadrate_kb)")
+        raise ValueError("无法找到有效数据足够的目标列")
+    
+    logging.info(f"最终选择目标变量: {TARGET_MAIN}")
+    
     initial_rows = len(df)
     df[TARGET_MAIN] = pd.to_numeric(df[TARGET_MAIN], errors='coerce')
     df = df[df[TARGET_MAIN] > 0]
