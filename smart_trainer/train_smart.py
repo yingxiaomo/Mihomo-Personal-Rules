@@ -372,8 +372,8 @@ def main():
     model = lgb.LGBMRegressor(**LGBM_PARAMS)
     
     callbacks = [
-        lgb.early_stopping(stopping_rounds=50, verbose=False), 
-        training_logger_cn(period=100) 
+        lgb.early_stopping(stopping_rounds=50, verbose=False),
+        training_logger_cn(period=100)
     ]
 
     model.fit(
@@ -386,23 +386,29 @@ def main():
     print("模型训练完成")
 
     if model.best_iteration_ == LGBM_PARAMS['n_estimators']:
-         print(f"训练状态: 未触发早停 (Did not meet early stopping)。最佳迭代轮数: [{model.best_iteration_}]")
+         print(f"训练状态: 未触发早停。最佳迭代轮数: [{model.best_iteration_}]")
     else:
-         print(f"训练状态: 触发早停 (Early stopping)。最佳迭代轮数: [{model.best_iteration_}]")
+         print(f"训练状态: 触发早停。最佳迭代轮数: [{model.best_iteration_}]")
 
     predictions = model.predict(X_val)
     mae = mean_absolute_error(y_val, predictions)
     r2 = r2_score(y_val, predictions)
     
-    print(f"测试集 MAE: {mae:.4f}")
-    print(f"测试集 R²得分: {r2:.4f}")
+    final_score = max(0, r2 * 10)
+
+    print(f"测试集 MAE误差: {mae:.4f}")
+    print(f"模型最终评分: {final_score:.3f} / 10.0")
     
-    if r2 > 0.5:
-        print("模型性能评估: 良好")
-    elif r2 > 0.2:
-        print("模型性能评估: 一般")
+    if final_score > 9.5:
+        print("✨ 评级: S级 - 极佳 (规律极强，数据质量完美)")
+    elif final_score > 8.0:
+        print("🟢 评级: A级 - 良好 (模型可用性高)")
+    elif final_score > 6.0:
+        print("🟡 评级: B级 - 及格 (部分数据可能存在干扰)")
+    elif final_score > 4.0:
+        print("🟠 评级: C级 - 一般 (特征关联度弱)")
     else:
-        print("模型性能评估: 较差 (可能是数据不足或特征不相关)")
+        print("🔴 评级: D级 - 不合格 (数据严重不足或噪声过大)")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     save_model_and_params(model, scalers, feature_order, args.output)

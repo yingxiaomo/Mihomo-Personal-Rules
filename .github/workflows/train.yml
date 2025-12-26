@@ -133,7 +133,6 @@ jobs:
           if status == "success":
               header = f"""<b>🎉 模型发布成功！</b>
               🔗 GitHub Release 已更新。
-              ✅ Mihomo 客户端将使用 V3 格式新模型。
               <a href="{server_url}/{repo}/releases/tag/{tag}">查看 Release</a>
               """
           else:
