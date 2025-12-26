@@ -203,7 +203,22 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     if TARGET_MAIN not in df.columns:
         TARGET_MAIN = 'maxdownloadrate_kb'
     
+    initial_rows = len(df)
+    df[TARGET_MAIN] = pd.to_numeric(df[TARGET_MAIN], errors='coerce')
+    df.dropna(subset=[TARGET_MAIN], inplace=True)
+    
     y = df[TARGET_MAIN]
+    if not np.isfinite(y).all():
+        logging.warning("目标变量仍包含非有限值(Inf)，正在过滤...")
+        valid_indices = np.isfinite(y)
+        df = df[valid_indices]
+        y = y[valid_indices]
+    
+    final_rows = len(df)
+    logging.info(f"目标值清洗完成，共过滤 {initial_rows - final_rows} 条无效数据")
+
+    if df.empty:
+        raise ValueError("数据清洗后为空，无法继续训练")
 
     logging.info(f"屏蔽偏见特征: {BIASED_FEATURES}")
     for col in BIASED_FEATURES:
@@ -215,6 +230,7 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     X = X.select_dtypes(include=np.number)
     
     X = X.fillna(0)
+    X.replace([np.inf, -np.inf], 0, inplace=True)
 
     logging.info(f"应用 Log1p 变换: {LOG1P_FEATURES}")
     for col in LOG1P_FEATURES:
@@ -309,6 +325,15 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
 
 def evaluate_model(model, X_val: pd.DataFrame, y_val: pd.Series) -> tuple:
     predictions = model.predict(X_val)
+    
+    if np.isnan(predictions).any():
+        logging.warning(f"预测结果中包含 {np.isnan(predictions).sum()} 个 NaN 值，已自动替换为 0")
+        predictions = np.nan_to_num(predictions, nan=0.0)
+    
+    if np.isnan(y_val).any():
+        logging.error("验证集目标变量 y_val 中包含 NaN 值！这不应该发生。")
+        y_val = y_val.fillna(0)
+
     mae = mean_absolute_error(y_val, predictions)
     r2 = r2_score(y_val, predictions)
     return mae, r2
