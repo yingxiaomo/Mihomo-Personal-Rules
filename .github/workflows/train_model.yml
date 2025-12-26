@@ -1,0 +1,64 @@
+name: Train and Release Smart Model
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC
+
+jobs:
+  train_and_release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_model_is_champion: ${{ steps.train_step.outputs.new_model_is_champion }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r smart_trainer/requirements.txt
+      
+      - name: Download Champion Model
+        id: download_champion
+        continue-on-error: true
+        run: |
+          # Download the current champion model.
+          # The URL points to the asset from the 'latest-model' release.
+          # continue-on-error ensures the workflow doesn't fail if the release or asset doesn't exist (e.g., first run).
+          curl -L -o smart_trainer/champion.bin https://github.com/${{ github.repository }}/releases/download/latest-model/Model.bin
+
+      - name: Run Training and Evaluation
+        id: train_step
+        run: |
+          # Run the script, passing the path to the downloaded champion model if it exists.
+          # The script will internally compare the new model (challenger) with the champion.
+          # It then outputs 'new_model_is_champion' which we use in the next step.
+          python smart_trainer/train_smart.py \
+            --output-file smart_trainer/Model.bin \
+            --champion-model-path smart_trainer/champion.bin
+
+      - name: Release New Champion Model
+        if: steps.train_step.outputs.new_model_is_champion == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifactPath: smart_trainer/Model.bin
+          tag: latest-model
+          name: "Latest Smart Model (Automated)"
+          body: "This release contains the latest model, automatically trained and validated by GitHub Actions."
+          replacesArtifacts: true
+          allowUpdates: true
+          prerelease: true
+      
+      - name: Report Champion Kept
+        if: steps.train_step.outputs.new_model_is_champion == 'false'
+        run: echo "Champion model performed better or equal. No new model was released."
+

@@ -1,0 +1,15 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore data and model files
+smart_trainer/data/
+smart_trainer/Model.bin
+smart_trainer/cache/
+
+# Ignore local files
+.vscode/
+
+# Ignore documentation
+.ai.md
+.ai1.md

@@ -324,4 +324,4 @@ rule-providers:
   谷歌ip: { <<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.mrs"} 
   电报ip: { <<: *ip, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/telegramip.mrs"} 
   
-  广告: { <<: *domain_text, url: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/Self-use-rules/uaaad.list"} 
+  广告: { <<: *domain_text, url: "https://raw.githubusercontent.com/YingXiaoMo/Mihomo-Personal-Rules/refs/heads/main/rules/custom/uaaad.list"}
