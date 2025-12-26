@@ -65,7 +65,6 @@ jobs:
       - name: Run training script
         id: training
         run: |
-          # 运行训练脚本
           set -o pipefail
           python smart_trainer/train_smart.py --output-file Model.bin 2>&1 | tee training_log.txt
 
@@ -87,7 +86,6 @@ jobs:
       - name: Update Tag
         if: success()
         run: |
-          # 删除旧 tag 并推送新 tag
           git push --delete origin "$LATEST_TAG" 2>/dev/null || true  
           git tag -f "$LATEST_TAG"
           git push origin "$LATEST_TAG"
@@ -135,7 +133,6 @@ jobs:
           tag = os.environ.get("LATEST_TAG")
           log_file = os.environ.get("LOG_FILE")
 
-          # 检查 Token
           if not token or not chat_id:
               print("::warning::Telegram Token or Chat ID is missing. Skipping notification.")
               sys.exit(0)
@@ -156,7 +153,6 @@ jobs:
               except Exception as e:
                   print(f"Failed to send message: {e}")
 
-          # 1. 发送总结标题
           if status == "success":
               header = f"""<b>🎉 模型发布成功！</b>
               🔗 GitHub Release 已更新。
@@ -171,7 +167,6 @@ jobs:
           
           send_msg(header)
 
-          # 2. 直接读取本地文件并分段发送
           if os.path.exists(log_file):
               try:
                   with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -180,7 +175,6 @@ jobs:
                   if not content.strip():
                       send_msg("<i>(日志文件为空)</i>")
                   else:
-                      # 每次发送 3000 字符，避免超出 Telegram 限制
                       chunk_size = 3000
                       if len(content) > chunk_size:
                           for i in range(0, len(content), chunk_size):
@@ -193,7 +187,6 @@ jobs:
           else:
               send_msg(f"⚠️ 找不到日志文件: {log_file} (可能在训练开始前就崩溃了)")
           
-          # 3. 清理临时文件 (在通知发送后清理)
           if os.path.exists("rclone.conf"):
               os.remove("rclone.conf")
           if os.path.exists("./data"):

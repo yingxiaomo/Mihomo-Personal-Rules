@@ -1,20 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-train_smart.py: LightGBM Model Trainer for Mihomo Smart Node Selection
-
-This CLI tool trains a LightGBM regression model to optimize Mihomo/OpenClash
-router's proxy node selection weights. It incorporates several key strategies
-to ensure model accuracy and robustness, addressing issues like data drift and
-selection bias.
-
-Key Features:
-- Automated Go source code synchronization to align feature definitions.
-- Time-windowed data loading (last 15 days) to prevent data drift.
-- Bias masking for features that create an "echo chamber" effect.
-- Time-decay sample weighting to prioritize recent data.
-- Correct serialization of model and scaling parameters into a single file
-  for seamless use by the Mihomo Go kernel.
-"""
 import argparse
 import datetime
 import logging
@@ -160,7 +143,7 @@ def parse_feature_order(go_source: str) -> dict[int, str]:
 
     content = match.group(1)
     feature_map = {}
-    # Regex for individual map entries, e.g., "0: "id","
+    # Regex for individual map entries, e.g., "0: \"id\","
     entry_pattern = re.compile(r'(\d+)\s*:\s*"([^"]+)"')
     for line in content.split(','):
         if not line.strip():
@@ -514,3 +497,6 @@ def main():
         save_model_and_params(challenger_model, scalers, feature_order, args.output_file)
 
     logging.info("All tasks completed successfully.")
+
+if __name__ == "__main__":
+    main()
