@@ -189,7 +189,10 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     logging.info(f"已过滤 {initial_rows - final_rows} 条废数据 (NaN或0速度). 剩余有效记录数: {final_rows}")
     if df.empty:
         raise ValueError("数据清洗后为空，无法继续训练")
-    y = df[TARGET_MAIN]
+    
+    y = df[TARGET_MAIN].copy()
+    logging.info(f"目标变量统计: min={y.min():.2f}, max={y.max():.2f}, mean={y.mean():.2f}, std={y.std():.2f}")
+
     logging.info(f"屏蔽偏见特征: {BIASED_FEATURES}")
     for col in BIASED_FEATURES:
         if col in df.columns:
