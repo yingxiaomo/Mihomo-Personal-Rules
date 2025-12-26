@@ -15,14 +15,14 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
-# --- Constants and Configuration ---
 
-# URL for the Go source file containing feature definitions
+
+
 GO_SOURCE_URL = "https://raw.githubusercontent.com/vernesong/mihomo/Alpha/component/smart/lightgbm/transform.go"
 CACHE_DIR = Path("./cache")
 GO_SOURCE_CACHE_PATH = CACHE_DIR / "transform.go.cache"
 
-# Features that create bias ("echo chamber") and should be masked
+
 BIASED_FEATURES = [
     'download_mb',
     'upload_mb',
@@ -36,7 +36,7 @@ BIASED_FEATURES = [
     'failure',
 ]
 
-# Features that require log1p transformation (matching Go's prepareFeatures)
+
 LOG1P_FEATURES = [
     'connect_time',
     'latency',
@@ -52,7 +52,7 @@ LOG1P_FEATURES = [
     'last_used_seconds',
 ]
 
-# Feature types for scaling
+
 CONTINUOUS_FEATURES = [
     'success',
     'failure',
@@ -76,10 +76,10 @@ CONTINUOUS_FEATURES = [
     'geoip_hash',
 ]
 COUNT_FEATURES = [
-    # No count features by default, but can be added here
+
 ]
 
-# --- Logging Setup ---
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -132,7 +132,7 @@ def parse_feature_order(go_source: str) -> dict[int, str]:
         ValueError: If the feature order function or pattern is not found.
     """
     logging.info("Parsing feature order from Go source...")
-    # Regex to find the feature mapping within the function
+
     pattern = re.compile(
         r'func\s+getDefaultFeatureOrder\(\)\s+map\[int\]string\s+\{.*?return\s+map\[int\]string\s*\{(.*?)\}',
         re.DOTALL
@@ -143,7 +143,7 @@ def parse_feature_order(go_source: str) -> dict[int, str]:
 
     content = match.group(1)
     feature_map = {}
-    # Regex for individual map entries, e.g., "0: \"id\","
+
     entry_pattern = re.compile(r'(\d+)\s*:\s*"([^"]+)"')
     for line in content.split(','):
         if not line.strip():
@@ -225,7 +225,7 @@ def load_data(data_dir: Path, time_window_days: int = 15) -> pd.DataFrame:
 
     df_list = []
     for f in recent_files:
-        # Try different encodings
+
         for encoding in ['utf-8', 'gbk', 'latin-1']:
             try:
                 df = pd.read_csv(f, encoding=encoding)
@@ -262,19 +262,19 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     """
     logging.info("Starting data preprocessing...")
 
-    # --- Feature Engineering ---
+
     logging.info("Performing feature engineering...")
-    # Handle potential division by zero
+
     df['latency_stability'] = df['latency_avg'] / (df['latency_min'] + 1e-6)
     df['connection_efficiency'] = df['success_rate'] / (df['connect_time'] + 1e-6)
     logging.info("Engineered features 'latency_stability' and 'connection_efficiency'.")
 
 
-    # Set target variables
+
     TARGET_MAIN = 'download_mbps'
 
     if TARGET_MAIN not in df.columns:
-        # Fallback for older data formats or dummy data
+
         TARGET_MAIN = 'maxdownloadrate_kb' if 'maxdownloadrate_kb' in df.columns else None
         if not TARGET_MAIN:
             raise ValueError("Main target variable ('download_mbps' or 'maxdownloadrate_kb') not found in data.")
@@ -282,38 +282,38 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
     
     y = df[TARGET_MAIN]
 
-    # Mask biased features
+
     logging.info(f"Masking biased features: {BIASED_FEATURES}")
     for col in BIASED_FEATURES:
         if col in df.columns:
             df[col] = 0.0
 
-    # Align feature columns with the order from Go source
+
     ordered_features = [feature_order[i] for i in sorted(feature_order.keys())]
-    # Keep only features present in the dataframe
+
     X = df[[col for col in ordered_features if col in df.columns]]
 
-    # Drop non-numeric and identifier columns that are not features
+
     X = X.select_dtypes(include=np.number)
 
-    # Apply Log1p transformation to match Go's prepareFeatures
+
     logging.info(f"Applying Log1p transformation to: {LOG1P_FEATURES}")
     for col in LOG1P_FEATURES:
         if col in X.columns:
-            # Clip negative values to 0 before log1p to avoid errors
+
             X[col] = np.log1p(X[col].clip(lower=0))
 
-    # Apply scaling
+
     scalers = {}
     if CONTINUOUS_FEATURES:
         continuous_present = [c for c in CONTINUOUS_FEATURES if c in X.columns]
-        # Use Standard Scaler for all continuous features to match Go's expectation
-        # Go's transform.go seems to default to StandardScaler or RobustScaler
-        # We will use StandardScaler as the primary scaler for now.
+
+
+
         scaler_std = StandardScaler()
         X[continuous_present] = scaler_std.fit_transform(X[continuous_present])
         scalers['standard'] = scaler_std
-        scalers['std_features'] = continuous_present # Save feature names for ini generation
+        scalers['std_features'] = continuous_present
         logging.info(f"Applied StandardScaler to: {continuous_present}")
 
 
@@ -322,11 +322,11 @@ def preprocess_data(df: pd.DataFrame, feature_order: dict) -> tuple:
         scaler_robust = RobustScaler()
         X[count_present] = scaler_robust.fit_transform(X[count_present])
         scalers['robust'] = scaler_robust
-        scalers['robust_features'] = count_present # Save feature names for ini generation
+        scalers['robust_features'] = count_present
         logging.info(f"Applied RobustScaler to: {count_present}")
 
 
-    # Calculate sample weights with time decay
+
     logging.info("Calculating sample weights with time decay...")
     df['sample_weight'] = 1 / (1 + 0.1 * df['file_age_days'])
     sample_weights = df['sample_weight']
@@ -350,10 +350,10 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
     joblib.dump(model, output_path)
     logging.info("Model saved successfully.")
 
-    # Invert feature order to map Name -> Index
+
     feature_name_to_idx = {v: k for k, v in feature_order.items()}
 
-    # --- Construct INI configuration string ---
+
     ini_string = "\n\n[transforms]\n"
     definitions_string = "\n[definitions]\n"
     order_string = "\n[order]\n"
@@ -362,7 +362,7 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
     std_feature_names = scalers.get('std_features', [])
 
     if scaler_std and std_feature_names:
-        # Get indices for the features
+
         feature_indices = []
         valid_indices = []
         
@@ -374,7 +374,7 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
                 logging.warning(f"Feature {name} not found in feature order map, skipping in transform config.")
 
         if feature_indices:
-            # Filter mean and scale to only include valid features
+
             means = scaler_std.mean_[valid_indices]
             scales = scaler_std.scale_[valid_indices]
 
@@ -406,14 +406,14 @@ def save_model_and_params(model, scalers, feature_order, output_path: Path):
             definitions_string += "robust_center=" + ",".join(f"{x:.6f}" for x in centers) + "\n"
             definitions_string += "robust_scale=" + ",".join(f"{x:.6f}" for x in scales) + "\n"
 
-    # Build [order] section
+
     for i in sorted(feature_order.keys()):
         order_string += f"{i} = {feature_order[i]}\n"
 
 
     final_config = ini_string + order_string + definitions_string + "transform=true\n[/transforms]"
 
-    # Append to the model file
+
     with open(output_path, "ab") as f:
         f.write(final_config.encode('utf-8'))
     
@@ -435,7 +435,7 @@ def main():
     parser.add_argument("--champion-model-path", type=Path, default=None, help="Path to the champion model for comparison.")
     args = parser.parse_args()
 
-    # --- Pipeline ---
+
     go_source = fetch_go_source()
     feature_order = parse_feature_order(go_source)
     fetched_data_dir = fetch_training_data(args.data_dir)

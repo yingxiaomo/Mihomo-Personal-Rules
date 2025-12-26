@@ -9,12 +9,7 @@ cache/
 mihomo-Alpha/
 transform.go
 .ai.md
-.ai1.md
+
 
 # Ignore local files
 .vscode/
-
-# Ignore documentation
-.ai.md
-.ai1.md
-mihomo-Alpha/
