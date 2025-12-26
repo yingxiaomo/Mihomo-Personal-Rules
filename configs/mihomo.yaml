@@ -197,6 +197,7 @@ proxy-groups:
 
 # 规则匹配
 rules:
+  - RULE-SET,DNS, DNS服务
 #  - RULE-SET,广告 ,🛑 广告过滤                                  ##广告我注释了，开启过滤会影响访问速度，并且也没什么用。
   - RULE-SET,私有域名 ,🎯 全球直连
   - RULE-SET,直连软件,🎯 全球直连
@@ -237,6 +238,7 @@ rule-anchor:
   domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
   class: &class {type: http, interval: 86400, behavior: classical, format: text}
 rule-providers: 
+  DNS: { <<: *class, url: "https://cdn.jsdelivr.net/gh/YingXiaoMo/Mihomo-Personal-Rules@main/rules/custom/proxydns.list"} 
   fakeip过滤: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/fakeip-filter.mrs"}  
   游戏平台: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/games.mrs"} 
   游戏下载: { <<: *domain, url: "https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo-ruleset/games-cn.mrs"} 
