@@ -81,9 +81,9 @@ jobs:
           name: Smart Model
           files: Model.bin
           body: |
-            ✨ Permanent Model Link Updated.
-            - Model Source Commit: ${{ github.sha }}
-            - Training Run ID: ${{ github.run_id }}
+            ✨ 永久模型链接已更新。
+            - 模型源提交: ${{ github.sha }}
+            - 训练运行 ID: ${{ github.run_id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Send Notification

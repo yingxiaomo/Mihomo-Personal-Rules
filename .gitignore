@@ -14,3 +14,5 @@ transform.go
 # Ignore local files
 .vscode/
 *.csv
+*.log
+*.sqlite3
